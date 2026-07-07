@@ -52,7 +52,8 @@ files/
 │   │   ├── router-optimize-revert.sh     # 恢复脚本
 │   │   ├── router-purge.sh               # 关闭 IPv6 + 卸载视频/IPTV/无用包
 │   │   ├── enable-ipv6.sh                # 重新启用 IPv6
-│   │   └── migrate-alist-to-overlay.sh   # Alist 从 USB 迁移到 eMMC overlay
+│   │   ├── migrate-alist-to-overlay.sh   # Alist 从 USB 迁移到 eMMC overlay
+│   │   └── allow-campus-access.sh        # 放行校园网 WAN 管理访问
 │   └── lib/lua/luci/
 │       ├── alistapi.lua         # Alist API 代理（token 缓存、自动重登、超时）
 │       ├── controller/alist.lua # LuCI 控制器（dashboard、share API、IP 管理等）
@@ -216,6 +217,26 @@ chmod +x /usr/bin/router-purge.sh
 - 自动清理残留依赖。
 
 > ⚠️ 此操作会删除软件包，恢复时需要重新 `opkg install`。如果后悔了可以运行 `/usr/bin/enable-ipv6.sh` 恢复 IPv6，但已卸载的包需要手动装回。
+
+## 校园网/外网管理路由器
+
+如果路由器和电脑都独立接入校园网，想通过校园网 IP 管理路由器，可以放行对应网段：
+
+```sh
+chmod +x /usr/bin/allow-campus-access.sh
+/usr/bin/allow-campus-access.sh 10.23.118.0/24
+```
+
+这会放行 **SSH (22)** 和 **Web (80)**，仅限指定的校园网子网访问。
+
+示例：
+
+```sh
+ssh root@10.23.118.11
+# Web: http://10.23.118.11
+```
+
+> 安全提醒：不要把 22/80 端口向 `0.0.0.0/0` 全网开放，尽量只开你所在的子网。
 
 ## 许可
 

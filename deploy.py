@@ -36,6 +36,7 @@ FILES = [
     ("usr/bin/router-purge.sh", "/usr/bin/router-purge.sh"),
     ("usr/bin/enable-ipv6.sh", "/usr/bin/enable-ipv6.sh"),
     ("usr/bin/migrate-alist-to-overlay.sh", "/usr/bin/migrate-alist-to-overlay.sh"),
+    ("usr/bin/allow-campus-access.sh", "/usr/bin/allow-campus-access.sh"),
     ("etc/netdata/netdata.conf", "/etc/netdata/netdata.conf"),
     ("etc/sysctl.d/99-disable-ipv6.conf", "/etc/sysctl.d/99-disable-ipv6.conf"),
 ]
@@ -141,6 +142,7 @@ def main():
                 "/usr/bin/router-optimize.sh /usr/bin/router-optimize-revert.sh "
                 "/usr/bin/router-purge.sh /usr/bin/enable-ipv6.sh "
                 "/usr/bin/migrate-alist-to-overlay.sh "
+                "/usr/bin/allow-campus-access.sh "
                 "/overlay/alist/tc_apply.sh",
                 "set permissions")
         run_ssh(askpass, "rm -f /tmp/luci-indexcache /tmp/luci-modulecache/*", "clear LuCI cache")
