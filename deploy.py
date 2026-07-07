@@ -33,7 +33,10 @@ FILES = [
     ("usr/bin/cgroup-mem-limit.sh", "/usr/bin/cgroup-mem-limit.sh"),
     ("usr/bin/router-optimize.sh", "/usr/bin/router-optimize.sh"),
     ("usr/bin/router-optimize-revert.sh", "/usr/bin/router-optimize-revert.sh"),
+    ("usr/bin/router-purge.sh", "/usr/bin/router-purge.sh"),
+    ("usr/bin/enable-ipv6.sh", "/usr/bin/enable-ipv6.sh"),
     ("etc/netdata/netdata.conf", "/etc/netdata/netdata.conf"),
+    ("etc/sysctl.d/99-disable-ipv6.conf", "/etc/sysctl.d/99-disable-ipv6.conf"),
 ]
 
 SSH_OPTS = [
@@ -135,6 +138,7 @@ def main():
                 "chmod +x /etc/init.d/alist /etc/init.d/usb_swap /etc/init.d/usb_swap_run "
                 "/etc/init.d/cgroup_mem_limits /usr/bin/cgroup-mem-limit.sh "
                 "/usr/bin/router-optimize.sh /usr/bin/router-optimize-revert.sh "
+                "/usr/bin/router-purge.sh /usr/bin/enable-ipv6.sh "
                 "/mnt/usbdata/alist/tc_apply.sh",
                 "set permissions")
         run_ssh(askpass, "rm -f /tmp/luci-indexcache /tmp/luci-modulecache/*", "clear LuCI cache")

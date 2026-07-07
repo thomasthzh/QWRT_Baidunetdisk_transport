@@ -38,17 +38,20 @@ files/
 │   │   ├── usb_swap_run         # USB swap 工作脚本
 │   │   └── cgroup_mem_limits    # 启动时给服务加 cgroup 内存硬限
 │   ├── sysctl.d/
-│   │   └── 99-memory.conf       # 内存与网络调优参数
+│   │   ├── 99-memory.conf           # 内存与网络调优参数
+│   │   └── 99-disable-ipv6.conf     # 关闭 IPv6 节省内存
 │   ├── netdata/
-│   │   └── netdata.conf         # 精简版 netdata 配置（降低内存）
-│   └── config/alist             # UCI 配置
+│   │   └── netdata.conf             # 精简版 netdata 配置（降低内存）
+│   └── config/alist                 # UCI 配置
 ├── mnt/usbdata/alist/
-│   └── tc_apply.sh              # 按 IP 限速脚本
+│   └── tc_apply.sh                  # 按 IP 限速脚本
 ├── usr/
 │   ├── bin/
-│   │   ├── cgroup-mem-limit.sh      # cgroup v1 内存限制工具
-│   │   ├── router-optimize.sh       # 一键深度优化内存脚本
-│   │   └── router-optimize-revert.sh # 恢复脚本
+│   │   ├── cgroup-mem-limit.sh          # cgroup v1 内存限制工具
+│   │   ├── router-optimize.sh           # 一键深度优化内存脚本
+│   │   ├── router-optimize-revert.sh    # 恢复脚本
+│   │   ├── router-purge.sh              # 关闭 IPv6 + 卸载视频/IPTV/无用包
+│   │   └── enable-ipv6.sh               # 重新启用 IPv6
 │   └── lib/lua/luci/
 │       ├── alistapi.lua         # Alist API 代理（token 缓存、自动重登、超时）
 │       ├── controller/alist.lua # LuCI 控制器（dashboard、share API、IP 管理等）
@@ -133,9 +136,29 @@ ss -Htn
    - 代理/下载类（当前多数未启动，但已预限）：`clash/openclash` 128 MB、`qbittorrent` 256 MB、`zerotier` 96 MB、`frpc/openvpn/ssr` 64 MB。
    - `/etc/init.d/cgroup_mem_limits` 在启动末期执行，cron 每分钟再刷新一次，以覆盖 procd 自动重启产生的新进程。
 4. **sysctl 内存调优**：`vm.swappiness=60`、`vm.oom_kill_allocating_task=1`、连接跟踪上限降低、TCP 内存收紧等。
-5. **zram/zswap 不可用**：当前内核未编译相关模块，无法启用压缩内存/交换。
+5. **关闭 IPv6**：对于不需要 IPv6 的环境，关闭 `odhcpd`、IPv6 RA/DHCPv6，可显著降低内核内存占用。
+6. **卸载视频/IPTV/无用 LuCI 应用**：Hermes、msd_lite、xupnpd、Samba、KMS、IPSec/OpenVPN 服务器、TTYD、FTP、USB 打印机等。
+7. **zram/zswap 不可用**：当前内核未编译相关模块，无法启用压缩内存/交换。
 
 > **当前状态**：U 盘未识别，系统正使用 eMMC swap 兜底。请检查 USB 接口是否松动或更换 U 盘后重启，`usb_swap` 会自动切换回 USB swap。
+
+> 执行 `router-purge.sh` 后实际可用内存从约 170 MB 提升到约 **200 MB**。
+
+## 内存升级可行性（预算不够时的参考）
+
+京东云 AX1800 Pro 原装内存是 **NT52CB256M16DP-EK**（512 MB BGA96 DDR3L）。要真正解决“跑很多服务”，最治本的是 **硬改 1 GB 内存**：
+
+- **可替换颗粒**：`NT52CB512M16DP`、`MT41K512M16HA-107`（D9STQ）、`H5TC8G63MFR` 等 BGA96 DDR3L 1 GB。
+- **位置**：CPU 旁边那颗正方形 BGA 内存芯片。
+- **工具**：热风枪（建议 850 热风台）、BGA 植球钢网、焊膏、显微镜/放大镜。
+- **风险**：
+  - BGA 引脚多、间距小，植球和焊接对新手不友好，容易虚焊/连锡。
+  - 换颗粒后需要 **固件/DTB 支持 1 GB**，否则系统只认 512 MB 甚至不开机。
+  - 没有备用机的话，焊坏了就砖。
+
+**结论**：你有焊锡和热风枪基础，理论上能做，但 **BGA 内存是第一道坎，固件适配是第二道坎**。建议：
+- 先找一台同型号坏机或便宜的二手同款练手；
+- 或者先在当前机器上把服务优化/拆分做到极致，等预算够了再换 N100 小主机。
 
 ## 一键深度优化
 
@@ -160,6 +183,23 @@ chmod +x /usr/bin/router-optimize.sh
 ```sh
 /usr/bin/router-optimize-revert.sh /root/router_opt_backup_xxx
 ```
+
+### 更激进的清理：`router-purge.sh`
+
+如果你确定 **不需要 IPv6、Hermes、IPTV/视频流、Samba、IPSec/OpenVPN 服务器、TTYD 等**，可以运行：
+
+```sh
+chmod +x /usr/bin/router-purge.sh
+/usr/bin/router-purge.sh
+```
+
+该脚本会：
+
+- 关闭 IPv6 并禁用 `odhcpd`。
+- 卸载 Hermes、msd_lite、xupnpd、Samba、KMS、TTYD、FTP、USB 打印、IPSec 服务器、OpenVPN 服务器等。
+- 自动清理残留依赖。
+
+> ⚠️ 此操作会删除软件包，恢复时需要重新 `opkg install`。如果后悔了可以运行 `/usr/bin/enable-ipv6.sh` 恢复 IPv6，但已卸载的包需要手动装回。
 
 ## 许可
 
