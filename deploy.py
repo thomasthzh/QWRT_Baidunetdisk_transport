@@ -31,6 +31,9 @@ FILES = [
     ("etc/init.d/usb_swap_run", "/etc/init.d/usb_swap_run"),
     ("etc/init.d/cgroup_mem_limits", "/etc/init.d/cgroup_mem_limits"),
     ("usr/bin/cgroup-mem-limit.sh", "/usr/bin/cgroup-mem-limit.sh"),
+    ("usr/bin/router-optimize.sh", "/usr/bin/router-optimize.sh"),
+    ("usr/bin/router-optimize-revert.sh", "/usr/bin/router-optimize-revert.sh"),
+    ("etc/netdata/netdata.conf", "/etc/netdata/netdata.conf"),
 ]
 
 SSH_OPTS = [
@@ -131,6 +134,7 @@ def main():
         run_ssh(askpass,
                 "chmod +x /etc/init.d/alist /etc/init.d/usb_swap /etc/init.d/usb_swap_run "
                 "/etc/init.d/cgroup_mem_limits /usr/bin/cgroup-mem-limit.sh "
+                "/usr/bin/router-optimize.sh /usr/bin/router-optimize-revert.sh "
                 "/mnt/usbdata/alist/tc_apply.sh",
                 "set permissions")
         run_ssh(askpass, "rm -f /tmp/luci-indexcache /tmp/luci-modulecache/*", "clear LuCI cache")

@@ -6,12 +6,31 @@ STOP=10
 
 start() {
     sleep 5
+    # Core user services already running
     /usr/bin/cgroup-mem-limit.sh kaiplus 256m 384m kaiplus_bin
     /usr/bin/cgroup-mem-limit.sh cloudflared 128m 192m cloudflared
     /usr/bin/cgroup-mem-limit.sh homebox 128m 192m homebox
-    /usr/bin/cgroup-mem-limit.sh netdata 128m 192m netdata
+    /usr/bin/cgroup-mem-limit.sh netdata 96m 128m netdata
     /usr/bin/cgroup-mem-limit.sh alist 192m 256m alist
     /usr/bin/cgroup-mem-limit.sh dockerd 192m 256m dockerd
+
+    # Proxy / VPN / download services (even if currently disabled, limits them if re-enabled)
+    /usr/bin/cgroup-mem-limit.sh clash 128m 192m clash
+    /usr/bin/cgroup-mem-limit.sh openclash 128m 192m clash_meta
+    /usr/bin/cgroup-mem-limit.sh ssr 64m 96m ssr-redir
+    /usr/bin/cgroup-mem-limit.sh openvpn 64m 96m openvpn
+    /usr/bin/cgroup-mem-limit.sh frpc 64m 96m frpc
+    /usr/bin/cgroup-mem-limit.sh zerotier 96m 128m zerotier-one
+    /usr/bin/cgroup-mem-limit.sh qbittorrent 256m 384m qbittorrent-nox
+
+    # Optional services (some disabled above; limits remain for safety)
+    /usr/bin/cgroup-mem-limit.sh samba 128m 192m smbd,nmbd
+    /usr/bin/cgroup-mem-limit.sh kms 32m 48m vlmcsd
+    /usr/bin/cgroup-mem-limit.sh xupnpd 64m 96m xupnpd
+    /usr/bin/cgroup-mem-limit.sh ttyd 64m 96m ttyd
+    /usr/bin/cgroup-mem-limit.sh msd_lite 64m 96m msd_lite
+    /usr/bin/cgroup-mem-limit.sh wsdd2 32m 48m wsdd2
+    /usr/bin/cgroup-mem-limit.sh vsftpd 32m 48m vsftpd
 }
 
 stop() {

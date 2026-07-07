@@ -38,13 +38,17 @@ files/
 │   │   ├── usb_swap_run         # USB swap 工作脚本
 │   │   └── cgroup_mem_limits    # 启动时给服务加 cgroup 内存硬限
 │   ├── sysctl.d/
-│   │   └── 99-memory.conf       # 内存调优参数
+│   │   └── 99-memory.conf       # 内存与网络调优参数
+│   ├── netdata/
+│   │   └── netdata.conf         # 精简版 netdata 配置（降低内存）
 │   └── config/alist             # UCI 配置
 ├── mnt/usbdata/alist/
 │   └── tc_apply.sh              # 按 IP 限速脚本
 ├── usr/
 │   ├── bin/
-│   │   └── cgroup-mem-limit.sh  # cgroup v1 内存限制工具
+│   │   ├── cgroup-mem-limit.sh      # cgroup v1 内存限制工具
+│   │   ├── router-optimize.sh       # 一键深度优化内存脚本
+│   │   └── router-optimize-revert.sh # 恢复脚本
 │   └── lib/lua/luci/
 │       ├── alistapi.lua         # Alist API 代理（token 缓存、自动重登、超时）
 │       ├── controller/alist.lua # LuCI 控制器（dashboard、share API、IP 管理等）
@@ -125,11 +129,37 @@ ss -Htn
    - U 盘存在 → 挂载 `/mnt/usbdata` 并使用 `/mnt/usbdata/.swap/swapfile`（优先级 10）。
    - U 盘不存在 → 自动启用 eMMC swap 分区 `/dev/mmcblk0p26` 作为兜底。
 3. **cgroup 内存硬限**：给常见大内存服务设置上限，防止单个进程吃光内存导致系统卡死。
-   - 已配置：`kaiplus_bin` 256 MB、`cloudflared` 128 MB、`homebox` 128 MB、`netdata` 128 MB、`alist` 192 MB、`dockerd` 192 MB。
+   - 已配置：`kaiplus_bin` 256 MB、`cloudflared` 128 MB、`homebox` 128 MB、`netdata` 96 MB、`alist` 192 MB、`dockerd` 192 MB。
+   - 代理/下载类（当前多数未启动，但已预限）：`clash/openclash` 128 MB、`qbittorrent` 256 MB、`zerotier` 96 MB、`frpc/openvpn/ssr` 64 MB。
    - `/etc/init.d/cgroup_mem_limits` 在启动末期执行，cron 每分钟再刷新一次，以覆盖 procd 自动重启产生的新进程。
-4. **sysctl 内存调优**：`vm.swappiness=60`、`vm.oom_kill_allocating_task=1` 等。
+4. **sysctl 内存调优**：`vm.swappiness=60`、`vm.oom_kill_allocating_task=1`、连接跟踪上限降低、TCP 内存收紧等。
+5. **zram/zswap 不可用**：当前内核未编译相关模块，无法启用压缩内存/交换。
 
 > **当前状态**：U 盘未识别，系统正使用 eMMC swap 兜底。请检查 USB 接口是否松动或更换 U 盘后重启，`usb_swap` 会自动切换回 USB swap。
+
+## 一键深度优化
+
+如果还想进一步压榨内存，可以运行：
+
+```sh
+chmod +x /usr/bin/router-optimize.sh
+/usr/bin/router-optimize.sh
+```
+
+该脚本会自动：
+
+- 关闭明显用不到的服务（FTP、UPnP、Web 终端、Samba、KMS、链路聚合等）。
+- 精简 netdata 配置（缩短历史、关闭 tc 插件）。
+- 收紧 dnsmasq 缓存和系统日志。
+- 应用更多 sysctl 调优（连接跟踪、TCP/UDP 内存、ARP 缓存）。
+- 扩展 cgroup 内存限制到代理/下载类服务。
+- 自动备份原配置到 `/root/router_opt_backup_时间戳`。
+
+如果优化后某些功能异常，可用恢复脚本还原：
+
+```sh
+/usr/bin/router-optimize-revert.sh /root/router_opt_backup_xxx
+```
 
 ## 许可
 
