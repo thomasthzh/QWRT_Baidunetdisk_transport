@@ -1,0 +1,52 @@
+<%
+local util = require "luci.util"
+local cfg_path = "/mnt/usbdata/alist/data/config.json"
+local db_path = "/mnt/usbdata/alist/data/data.db"
+
+local function shell(cmd)
+    local ok, out = pcall(util.exec, cmd .. " 2>/dev/null")
+    if not ok or not out then return "" end
+    return util.trim(out)
+end
+
+local max_conn = shell("jq -r '.max_connections // 20' " .. cfg_path)
+if max_conn == "" then max_conn = "20" end
+local token = luci.dispatcher.context.authtoken
+
+local function db_val(key, def)
+    local v = shell("sqlite3 " .. db_path .. " \"SELECT value FROM x_setting_items WHERE key='" .. key .. "'\"")
+    if v == "" then v = def end
+    return v
+end
+
+local down = db_val("max_client_download_speed", "10240")
+local up = db_val("max_client_upload_speed", "5120")
+%>
+
+<fieldset class="cbi-section">
+    <legend><%:Bandwidth & Concurrency%></legend>
+    <form method="get" action="<%=luci.dispatcher.build_url("admin/nas/alist_apply")%>">
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:Total concurrent connections (max_connections)%></label>
+            <div class="cbi-value-field">
+                <input type="number" name="max_connections" value="<%=max_conn%>" min="0" step="1"/>
+                <br/><small><%:0 = unlimited%></small>
+            </div>
+        </div>
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:Max download speed per connection (KB/s)%></label>
+            <div class="cbi-value-field">
+                <input type="number" name="max_client_download_speed" value="<%=down%>" min="0" step="1"/>
+            </div>
+        </div>
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:Max upload speed per connection (KB/s)%></label>
+            <div class="cbi-value-field">
+                <input type="number" name="max_client_upload_speed" value="<%=up%>" min="0" step="1"/>
+            </div>
+        </div>
+        <div class="cbi-page-actions">
+            <input class="btn cbi-button cbi-button-apply" type="submit" value="<%:Save & Apply%>"/>
+        </div>
+    </form>
+</fieldset>

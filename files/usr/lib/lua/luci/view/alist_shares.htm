@@ -1,0 +1,159 @@
+<%
+local host = luci.http.getenv("SERVER_NAME") or "192.168.1.1"
+local token = luci.dispatcher.context.authtoken
+%>
+<script type="text/javascript">//<![CDATA[
+(function(){
+  var base = '/THZH百度盘';
+  var current = base;
+  function api_url(action, params){
+    var url = '<%=luci.dispatcher.build_url("admin/nas/alist_api")%>/' + action;
+    if(params){
+      var q = new URLSearchParams();
+      for(var k in params){ if(params.hasOwnProperty(k)) q.append(k, params[k]); }
+      url += '?' + q.toString();
+    }
+    return url;
+  }
+
+  function renderShares(list){
+    var tb = document.getElementById('alist-share-list');
+    if(!tb) return;
+    var rows = '';
+    (list || []).forEach(function(s){
+      var link = 'http://<%=host%>:5244/s/' + s.share_id;
+      rows += '<tr>'+
+        '<td>' + s.root_path + '</td>'+
+        '<td><a href="' + link + '" target="_blank">/s/' + s.share_id + '</a></td>'+
+        '<td>' + (s.has_password ? '有' : '无') + '</td>'+
+        '<td>' + (s.expires_at || '永久') + '</td>'+
+        '<td><button class="btn cbi-button cbi-button-remove" onclick="deleteShare(\'' + s.share_id + '\')">删除</button></td>'+
+      '</tr>';
+    });
+    tb.innerHTML = rows || '<tr><td colspan="5">暂无分享</td></tr>';
+  }
+
+  function fetch_json(url, timeout){
+    timeout = timeout || 8000;
+    var ctrl = new AbortController();
+    var t = setTimeout(function(){ ctrl.abort(); }, timeout);
+    return fetch(url, {signal: ctrl.signal}).then(function(r){ clearTimeout(t); return r.json(); }).catch(function(e){ clearTimeout(t); throw e; });
+  }
+  function loadShares(){
+    fetch_json(api_url('share/list')).then(function(j){
+      if(j && j.code===200 && j.data && j.data.content){
+        renderShares(j.data.content);
+      } else {
+        renderShares([]);
+      }
+    }).catch(function(){ renderShares([]); });
+  }
+
+  function loadDir(path){
+    current = path;
+    var curEl = document.getElementById('alist-cur-path');
+    if(curEl) curEl.textContent = path;
+    fetch_json(api_url('fs/list', {path: path})).then(function(j){
+      var el = document.getElementById('alist-dir-list');
+      if(!el || !j || j.code!==200 || !j.data || !j.data.content){ el && (el.innerHTML='<p>无法读取目录</p>'); return; }
+      var html = '<div style="margin-bottom:0.5em;"><a href="#" onclick="selectPath(decodeURIComponent(\'' + encodeURIComponent(current) + '\'));return false;">[选择当前目录]</a></div>';
+      html += '<ul style="list-style:none;padding:0;margin:0">';
+      if(path !== base){
+        var parent = path.replace(/\/[^\/]*$/, '');
+        if(parent === '') parent = '/';
+        html += '<li><a href="#" onclick="enterDir(decodeURIComponent(\'' + encodeURIComponent(parent) + '\'));return false;">[..]</a></li>';
+      }
+      j.data.content.forEach(function(item){
+        var childPath = current + '/' + item.name;
+        if(item.is_dir){
+          html += '<li>[D] <a href="#" onclick="enterDir(decodeURIComponent(\'' + encodeURIComponent(childPath) + '\'));return false;">' + item.name + '</a> <a href="#" onclick="selectPath(decodeURIComponent(\'' + encodeURIComponent(childPath) + '\'));return false;">[选择]</a></li>';
+        } else {
+          html += '<li><a href="#" onclick="selectPath(decodeURIComponent(\'' + encodeURIComponent(childPath) + '\'));return false;">' + item.name + '</a></li>';
+        }
+      });
+      html += '</ul>';
+      el.innerHTML = html;
+      var br = document.getElementById('alist-browser');
+      if(br) br.style.display = 'block';
+    }).catch(function(){
+      var el = document.getElementById('alist-dir-list');
+      el && (el.innerHTML='<p>读取失败</p>');
+    });
+  }
+
+  window.enterDir = function(path){ loadDir(path); };
+  window.selectPath = function(path){
+    var inp = document.getElementById('share-path');
+    if(inp) inp.value = path;
+    var br = document.getElementById('alist-browser');
+    if(br) br.style.display = 'none';
+  };
+  window.deleteShare = function(sid){
+    if(!confirm('确认删除该分享？')) return;
+    fetch(api_url('share/delete', {share_id: sid})).then(function(){ loadShares(); });
+  };
+
+  window.browseBase = function(){ loadDir(base); };
+  window.createShare = function(){
+    var pathEl = document.getElementById('share-path');
+    var path = pathEl ? pathEl.value.trim() : '';
+    if(path === '' || path.indexOf(base) !== 0){ alert('请选择 /THZH百度盘 下的文件或文件夹'); return; }
+    var pwdEl = document.getElementById('share-pwd');
+    var hoursEl = document.getElementById('share-hours');
+    var pwd = pwdEl ? pwdEl.value : '';
+    var hours = parseInt(hoursEl ? (hoursEl.value || '0') : '0', 10) || 0;
+    fetch(api_url('share/create', {path: path, password: pwd, expires_hours: hours})).then(function(r){ return r.json(); }).then(function(j){
+      var res = document.getElementById('share-result');
+      if(j && j.code===200 && j.data && j.data.share_id){
+        if(res) res.innerHTML = '创建成功：<a href="http://<%=host%>:5244/s/' + j.data.share_id + '" target="_blank">http://<%=host%>:5244/s/' + j.data.share_id + '</a>';
+        loadShares();
+      } else {
+        alert('创建失败：' + ((j && j.message) ? j.message : 'unknown'));
+      }
+    }).catch(function(e){ alert('请求失败：' + e); });
+  };
+
+  document.addEventListener('DOMContentLoaded', loadShares);
+})();
+//]]></script>
+
+<fieldset class="cbi-section">
+  <legend><%:Create Share Link%></legend>
+  <div class="cbi-value">
+    <label class="cbi-value-title"><%:Path%></label>
+    <div class="cbi-value-field">
+      <input type="text" id="share-path" value="/THZH百度盘/THZHShareSpace" style="width:60%;"/>
+      <input type="button" class="btn cbi-button cbi-button-action" id="btn-browse" value="<%:Browse%>" onclick="browseBase()"/>
+    </div>
+  </div>
+  <div id="alist-browser" style="display:none;margin-left:2em;border:1px solid #ccc;padding:0.5em;max-height:220px;overflow:auto;">
+    <p>当前路径：<code id="alist-cur-path"></code></p>
+    <div id="alist-dir-list"></div>
+  </div>
+  <div class="cbi-value">
+    <label class="cbi-value-title"><%:Password (optional)%></label>
+    <div class="cbi-value-field"><input type="text" id="share-pwd" value="" style="width:20%;"/></div>
+  </div>
+  <div class="cbi-value">
+    <label class="cbi-value-title"><%:Expire hours (0=permanent)%></label>
+    <div class="cbi-value-field"><input type="number" id="share-hours" value="0" min="0" step="1" style="width:10%;"/></div>
+  </div>
+  <div class="cbi-page-actions">
+    <input type="button" class="btn cbi-button cbi-button-apply" id="btn-create-share" value="<%:Create Share%>" onclick="createShare()"/>
+  </div>
+  <p id="share-result" style="margin-top:1em;"></p>
+</fieldset>
+
+<fieldset class="cbi-section">
+  <legend><%:Existing Share Links%></legend>
+  <table class="cbi-section-table">
+    <tr class="cbi-section-table-titles">
+      <th class="cbi-section-table-cell"><%:Path%></th>
+      <th class="cbi-section-table-cell"><%:Link%></th>
+      <th class="cbi-section-table-cell"><%:Password%></th>
+      <th class="cbi-section-table-cell"><%:Expire%></th>
+      <th class="cbi-section-table-cell"><%:Action%></th>
+    </tr>
+    <tbody id="alist-share-list"><tr><td colspan="5">加载中...</td></tr></tbody>
+  </table>
+</fieldset>

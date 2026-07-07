@@ -1,0 +1,25 @@
+<%
+local util = require "luci.util"
+local running = (os.execute("pidof alist >/dev/null") == 0)
+local host = luci.http.getenv("SERVER_NAME") or "192.168.1.1"
+local token = luci.dispatcher.context.authtoken
+%>
+<script type="text/javascript">//<![CDATA[
+    function alist_open(){ window.open('http://'+window.location.hostname+':5244/'); }
+//]]></script>
+
+<fieldset class="cbi-section">
+    <legend><%:Alist Status%></legend>
+    <p>
+        <% if running then %>
+            <em style="color:green"><b>Alist <%:RUNNING%></b></em>
+            <input class="btn cbi-button cbi-button-apply" type="button" value="<%:Open Alist%>" onclick="alist_open()"/>
+        <% else %>
+            <em style="color:red"><b>Alist <%:NOT RUNNING%></b></em>
+        <% end %>
+    </p>
+    <p>
+        <%:Public share folder%>: <code>/THZH百度盘/THZHShareSpace</code><br/>
+        <%:Default share link%>: <a href="http://<%=host%>:5244/s/4CjM8ecy" target="_blank">http://<%=host%>:5244/s/4CjM8ecy</a>
+    </p>
+</fieldset>

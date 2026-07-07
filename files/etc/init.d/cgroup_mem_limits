@@ -1,0 +1,19 @@
+#!/bin/sh /etc/rc.common
+# Apply cgroup memory hard limits to heavy services.
+# Runs late at boot and is re-triggered every minute by cron to catch respawns.
+START=99
+STOP=10
+
+start() {
+    sleep 5
+    /usr/bin/cgroup-mem-limit.sh kaiplus 256m 384m kaiplus_bin
+    /usr/bin/cgroup-mem-limit.sh cloudflared 128m 192m cloudflared
+    /usr/bin/cgroup-mem-limit.sh homebox 128m 192m homebox
+    /usr/bin/cgroup-mem-limit.sh netdata 128m 192m netdata
+    /usr/bin/cgroup-mem-limit.sh alist 192m 256m alist
+    /usr/bin/cgroup-mem-limit.sh dockerd 192m 256m dockerd
+}
+
+stop() {
+    true
+}

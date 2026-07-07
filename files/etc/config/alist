@@ -1,0 +1,4 @@
+config alist 'main'
+	option enabled '1'
+	option username 'admin'
+	option password 'CHANGEME'

@@ -1,0 +1,201 @@
+<%
+local host = luci.http.getenv("SERVER_NAME") or "192.168.1.1"
+local token = luci.dispatcher.context.authtoken
+%>
+<script type="text/javascript">//<![CDATA[
+(function(){
+  function api_url(action, params){
+    var url = '<%=luci.dispatcher.build_url("admin/nas")%>/' + action;
+    if(params){
+      var q = new URLSearchParams();
+      for(var k in params){ if(params.hasOwnProperty(k)) q.append(k, params[k]); }
+      url += '?' + q.toString();
+    }
+    return url;
+  }
+  function el(id){ return document.getElementById(id); }
+
+  function renderUsers(list){
+    var tb = el('alist-user-list');
+    if(!tb) return;
+    var rows = '';
+    (list || []).forEach(function(u){
+      rows += '<tr>'+
+        '<td>' + u.username + '</td>'+
+        '<td>' + (u.role && u.role[0] === 2 ? '管理员' : '普通用户') + '</td>'+
+        '<td>' + (u.base_path || '/') + '</td>'+
+        '<td>' + (u.disabled ? '禁用' : '正常') + '</td>'+
+        '<td>' + (u.permission || '') + '</td>'+
+      '</tr>';
+    });
+    tb.innerHTML = rows || '<tr><td colspan="5">无用户</td></tr>';
+  }
+  function renderConnections(list){
+    var tb = el('alist-conn-list');
+    if(!tb) return;
+    var rows = '';
+    (list || []).forEach(function(c){
+      rows += '<tr>'+
+        '<td>' + c.ip + '</td>'+
+        '<td>' + c.count + '</td>'+
+        '<td><button class="btn cbi-button cbi-button-remove" onclick="blockIp(\'' + c.ip + '\')">封禁</button></td>'+
+      '</tr>';
+    });
+    tb.innerHTML = rows || '<tr><td colspan="3">当前无连接</td></tr>';
+  }
+  function renderBlocked(list){
+    var tb = el('alist-blocked-list');
+    if(!tb) return;
+    var rows = '';
+    (list || []).forEach(function(item){
+      rows += '<tr>'+
+        '<td>' + item.ip + '</td>'+
+        '<td><button class="btn cbi-button cbi-button-apply" onclick="unblockIp(\'' + item.ip + '\')">解封</button></td>'+
+      '</tr>';
+    });
+    tb.innerHTML = rows || '<tr><td colspan="2">无封禁 IP</td></tr>';
+  }
+  function renderIpLimits(map){
+    var tb = el('alist-ip-limit-list');
+    if(!tb) return;
+    var rows = '';
+    for(var ip in map){
+      if(!map.hasOwnProperty(ip)) continue;
+      rows += '<tr>'+
+        '<td>' + ip + '</td>'+
+        '<td>↓' + map[ip].down + ' KB/s / ↑' + map[ip].up + ' KB/s</td>'+
+        '<td><button class="btn cbi-button cbi-button-remove" onclick="delIpLimit(\'' + ip + '\')">删除</button></td>'+
+      '</tr>';
+    }
+    tb.innerHTML = rows || '<tr><td colspan="3">无限速规则</td></tr>';
+  }
+
+  function fetch_json(url, timeout){
+    timeout = timeout || 8000;
+    var ctrl = new AbortController();
+    var t = setTimeout(function(){ ctrl.abort(); }, timeout);
+    return fetch(url, {signal: ctrl.signal}).then(function(r){ clearTimeout(t); return r.json(); }).catch(function(e){ clearTimeout(t); throw e; });
+  }
+  function loadDashboard(){
+    fetch_json(api_url('alist_dashboard')).then(function(j){
+      if(!j || j.code!==200 || !j.data) return;
+      renderUsers(j.data.users);
+      renderConnections(j.data.connections);
+      renderBlocked(j.data.blocked);
+      renderIpLimits(j.data.ip_limits);
+    }).catch(function(){
+      renderUsers([]); renderConnections([]); renderBlocked([]); renderIpLimits({});
+    });
+  }
+  function loadConnections(){
+    fetch_json(api_url('alist_connections')).then(function(j){
+      if(j && j.code===200 && j.data) renderConnections(j.data);
+    });
+  }
+
+  window.blockIp = function(ip){
+    if(!confirm('确认封禁 ' + ip + ' ？')) return;
+    fetch(api_url('alist_block_ip', {ip: ip})).then(function(){ loadDashboard(); });
+  };
+  window.unblockIp = function(ip){
+    fetch(api_url('alist_unblock_ip', {ip: ip})).then(function(){ loadDashboard(); });
+  };
+  window.delIpLimit = function(ip){
+    if(!confirm('确认删除 ' + ip + ' 的限速规则？')) return;
+    fetch(api_url('alist_ip_limit_del', {ip: ip})).then(function(){ loadDashboard(); });
+  };
+  window.addBlockIp = function(){
+    var ip = el('block-ip').value.trim();
+    if(!ip) return;
+    fetch(api_url('alist_block_ip', {ip: ip})).then(function(){ loadDashboard(); });
+  };
+  window.addIpLimit = function(){
+    var ip = el('limit-ip').value.trim();
+    var down = parseInt(el('limit-down').value || '0', 10);
+    var up = parseInt(el('limit-up').value || '0', 10);
+    if(!ip || (down<=0 && up<=0)){ alert('请填写 IP 和至少一个限速值'); return; }
+    fetch(api_url('alist_ip_limit_add', {ip: ip, down: down, up: up})).then(function(){ loadDashboard(); });
+  };
+
+  function initAdmin(){
+    loadDashboard();
+    setInterval(loadConnections, 5000);
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', initAdmin);
+  } else {
+    initAdmin();
+  }
+})();
+//]]></script>
+
+<fieldset class="cbi-section">
+  <legend><%:Alist Users%></legend>
+  <table class="cbi-section-table">
+    <tr class="cbi-section-table-titles">
+      <th class="cbi-section-table-cell"><%:Username%></th>
+      <th class="cbi-section-table-cell"><%:Role%></th>
+      <th class="cbi-section-table-cell"><%:Base Path%></th>
+      <th class="cbi-section-table-cell"><%:Status%></th>
+      <th class="cbi-section-table-cell"><%:Permission%></th>
+    </tr>
+    <tbody id="alist-user-list"><tr><td colspan="5">加载中...</td></tr></tbody>
+  </table>
+</fieldset>
+
+<fieldset class="cbi-section">
+  <legend><%:Online Connections (auto refresh every 5s)%></legend>
+  <table class="cbi-section-table">
+    <tr class="cbi-section-table-titles">
+      <th class="cbi-section-table-cell"><%:Client IP%></th>
+      <th class="cbi-section-table-cell"><%:Connections%></th>
+      <th class="cbi-section-table-cell"><%:Action%></th>
+    </tr>
+    <tbody id="alist-conn-list"><tr><td colspan="3">加载中...</td></tr></tbody>
+  </table>
+</fieldset>
+
+<fieldset class="cbi-section">
+  <legend><%:IP Block%></legend>
+  <div class="cbi-value">
+    <label class="cbi-value-title"><%:IP Address%></label>
+    <div class="cbi-value-field">
+      <input type="text" id="block-ip" value="" placeholder="192.168.1.100" style="width:30%;"/>
+      <input type="button" class="btn cbi-button cbi-button-remove" id="btn-block-ip" value="<%:Block%>" onclick="addBlockIp()"/>
+    </div>
+  </div>
+  <table class="cbi-section-table">
+    <tr class="cbi-section-table-titles">
+      <th class="cbi-section-table-cell"><%:Blocked IP%></th>
+      <th class="cbi-section-table-cell"><%:Action%></th>
+    </tr>
+    <tbody id="alist-blocked-list"><tr><td colspan="2">加载中...</td></tr></tbody>
+  </table>
+</fieldset>
+
+<fieldset class="cbi-section">
+  <legend><%:Per-IP Speed Limit (tc)%></legend>
+  <div class="cbi-value">
+    <label class="cbi-value-title"><%:IP Address%></label>
+    <div class="cbi-value-field"><input type="text" id="limit-ip" value="" placeholder="192.168.1.100" style="width:30%;"/></div>
+  </div>
+  <div class="cbi-value">
+    <label class="cbi-value-title"><%:Download KB/s (0=unlimited)%></label>
+    <div class="cbi-value-field"><input type="number" id="limit-down" value="0" min="0" step="1" style="width:15%;"/></div>
+  </div>
+  <div class="cbi-value">
+    <label class="cbi-value-title"><%:Upload KB/s (0=unlimited)%></label>
+    <div class="cbi-value-field"><input type="number" id="limit-up" value="0" min="0" step="1" style="width:15%;"/></div>
+  </div>
+  <div class="cbi-page-actions">
+    <input type="button" class="btn cbi-button cbi-button-apply" id="btn-add-ip-limit" value="<%:Add / Update%>" onclick="addIpLimit()"/>
+  </div>
+  <table class="cbi-section-table" style="margin-top:1em;">
+    <tr class="cbi-section-table-titles">
+      <th class="cbi-section-table-cell"><%:IP%></th>
+      <th class="cbi-section-table-cell">限速</th>
+      <th class="cbi-section-table-cell"><%:Action%></th>
+    </tr>
+    <tbody id="alist-ip-limit-list"><tr><td colspan="3">加载中...</td></tr></tbody>
+  </table>
+</fieldset>
