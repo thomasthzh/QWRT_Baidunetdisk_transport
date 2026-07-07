@@ -1,7 +1,7 @@
 <%
 local util = require "luci.util"
-local cfg_path = "/mnt/usbdata/alist/data/config.json"
-local db_path = "/mnt/usbdata/alist/data/data.db"
+local cfg_path = "/overlay/alist/data/config.json"
+local db_path = "/overlay/alist/data/data.db"
 
 local function shell(cmd)
     local ok, out = pcall(util.exec, cmd .. " 2>/dev/null")

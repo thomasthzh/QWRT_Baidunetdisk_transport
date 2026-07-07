@@ -20,8 +20,8 @@
 | 路由器 | 京东云 AX1800 Pro（IPQ6018） |
 | 系统 | QWRT R24.5.1 / OpenWrt 19.07-SNAPSHOT，内核 4.4.60 |
 | Alist | v3.60.0 `alist-linux-musl-arm64` |
-| 安装路径 | `/mnt/usbdata/alist/alist` |
-| 数据目录 | `/mnt/usbdata/alist/data` |
+| 安装路径 | `/usr/bin/alist` |
+| 数据目录 | `/overlay/alist/data` |
 | 监听端口 | `0.0.0.0:5244` |
 
 > 其他 aarch64 / arm64 平台通常只需替换 Alist 二进制即可。
@@ -43,15 +43,16 @@ files/
 │   ├── netdata/
 │   │   └── netdata.conf             # 精简版 netdata 配置（降低内存）
 │   └── config/alist                 # UCI 配置
-├── mnt/usbdata/alist/
+├── overlay/alist/
 │   └── tc_apply.sh                  # 按 IP 限速脚本
 ├── usr/
 │   ├── bin/
-│   │   ├── cgroup-mem-limit.sh          # cgroup v1 内存限制工具
-│   │   ├── router-optimize.sh           # 一键深度优化内存脚本
-│   │   ├── router-optimize-revert.sh    # 恢复脚本
-│   │   ├── router-purge.sh              # 关闭 IPv6 + 卸载视频/IPTV/无用包
-│   │   └── enable-ipv6.sh               # 重新启用 IPv6
+│   │   ├── cgroup-mem-limit.sh           # cgroup v1 内存限制工具
+│   │   ├── router-optimize.sh            # 一键深度优化内存脚本
+│   │   ├── router-optimize-revert.sh     # 恢复脚本
+│   │   ├── router-purge.sh               # 关闭 IPv6 + 卸载视频/IPTV/无用包
+│   │   ├── enable-ipv6.sh                # 重新启用 IPv6
+│   │   └── migrate-alist-to-overlay.sh   # Alist 从 USB 迁移到 eMMC overlay
 │   └── lib/lua/luci/
 │       ├── alistapi.lua         # Alist API 代理（token 缓存、自动重登、超时）
 │       ├── controller/alist.lua # LuCI 控制器（dashboard、share API、IP 管理等）
@@ -66,8 +67,8 @@ files/
 ## 快速安装
 
 1. **准备 Alist**
-   - 把 `alist-linux-musl-arm64` 放到 `/mnt/usbdata/alist/alist`。
-   - 创建数据目录 `/mnt/usbdata/alist/data`，运行一次 `alist admin` 设置初始密码，配置 `config.json`。
+   - 把 `alist-linux-musl-arm64` 放到 `/usr/bin/alist`。
+   - 创建数据目录 `/overlay/alist/data`，运行一次 `alist admin` 设置初始密码，配置 `config.json`。
    - 确保 `/etc/config/alist` 中的 `username` / `password` 与 Alist 管理员一致：
      ```sh
      uci set alist.main.username='admin'
@@ -84,7 +85,7 @@ files/
 
 3. **设置权限并启动**
    ```sh
-   chmod +x /etc/init.d/alist /mnt/usbdata/alist/tc_apply.sh
+   chmod +x /etc/init.d/alist /overlay/alist/tc_apply.sh
    /etc/init.d/alist enable
    /etc/init.d/alist start
    rm -f /tmp/luci-indexcache /tmp/luci-modulecache/*
@@ -92,6 +93,21 @@ files/
 
 4. **访问**
    打开 QWRT 后台 → 网络存储 → Alist。
+
+### 从 USB 迁移到 eMMC overlay
+
+如果 Alist 原本装在 USB 上（`/mnt/usbdata/alist`），而 U 盘不稳定，可以一键迁到 eMMC：
+
+```sh
+chmod +x /usr/bin/migrate-alist-to-overlay.sh
+/usr/bin/migrate-alist-to-overlay.sh
+```
+
+迁移后：
+- 二进制位于 `/overlay/alist/alist`
+- 数据位于 `/overlay/alist/data`
+- `/usr/bin/alist` 会软链接到 `/overlay/alist/alist`
+- 启动脚本、LuCI 控制器、限速脚本都会自动使用 `/overlay/alist`
 
 ## tc / ss 说明
 

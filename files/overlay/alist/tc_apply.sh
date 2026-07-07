@@ -1,6 +1,6 @@
 #!/bin/sh
 IFACE=br-lan
-DATA=/mnt/usbdata/alist/ip_limits.json
+DATA=/overlay/alist/ip_limits.json
 
 apply() {
     tc qdisc del dev $IFACE root 2>/dev/null

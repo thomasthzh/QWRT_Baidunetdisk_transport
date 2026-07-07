@@ -5,8 +5,8 @@ START=99
 STOP=10
 
 PROG=/usr/bin/alist
-DATA_DIR=/mnt/usbdata/alist/data
-TC_SCRIPT=/mnt/usbdata/alist/tc_apply.sh
+DATA_DIR=/overlay/alist/data
+TC_SCRIPT=/overlay/alist/tc_apply.sh
 
 start_service() {
     procd_open_instance alist

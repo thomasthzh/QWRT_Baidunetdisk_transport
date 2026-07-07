@@ -24,7 +24,7 @@ FILES = [
     ("usr/lib/lua/luci/view/alist_admin.htm", "/usr/lib/lua/luci/view/alist_admin.htm"),
     ("usr/lib/lua/luci/view/alist_shares.htm", "/usr/lib/lua/luci/view/alist_shares.htm"),
     ("etc/init.d/alist", "/etc/init.d/alist"),
-    ("mnt/usbdata/alist/tc_apply.sh", "/mnt/usbdata/alist/tc_apply.sh"),
+    ("overlay/alist/tc_apply.sh", "/overlay/alist/tc_apply.sh"),
     # memory / swap management
     ("etc/sysctl.d/99-memory.conf", "/etc/sysctl.d/99-memory.conf"),
     ("etc/init.d/usb_swap", "/etc/init.d/usb_swap"),
@@ -35,6 +35,7 @@ FILES = [
     ("usr/bin/router-optimize-revert.sh", "/usr/bin/router-optimize-revert.sh"),
     ("usr/bin/router-purge.sh", "/usr/bin/router-purge.sh"),
     ("usr/bin/enable-ipv6.sh", "/usr/bin/enable-ipv6.sh"),
+    ("usr/bin/migrate-alist-to-overlay.sh", "/usr/bin/migrate-alist-to-overlay.sh"),
     ("etc/netdata/netdata.conf", "/etc/netdata/netdata.conf"),
     ("etc/sysctl.d/99-disable-ipv6.conf", "/etc/sysctl.d/99-disable-ipv6.conf"),
 ]
@@ -139,7 +140,8 @@ def main():
                 "/etc/init.d/cgroup_mem_limits /usr/bin/cgroup-mem-limit.sh "
                 "/usr/bin/router-optimize.sh /usr/bin/router-optimize-revert.sh "
                 "/usr/bin/router-purge.sh /usr/bin/enable-ipv6.sh "
-                "/mnt/usbdata/alist/tc_apply.sh",
+                "/usr/bin/migrate-alist-to-overlay.sh "
+                "/overlay/alist/tc_apply.sh",
                 "set permissions")
         run_ssh(askpass, "rm -f /tmp/luci-indexcache /tmp/luci-modulecache/*", "clear LuCI cache")
         run_ssh(askpass, "/etc/init.d/usb_swap enable && /etc/init.d/cgroup_mem_limits enable", "enable services")

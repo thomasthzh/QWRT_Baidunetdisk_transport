@@ -7,14 +7,14 @@ local json = require "luci.jsonc"
 local util = require "luci.util"
 local api = require "luci.alistapi"
 
-local DATA_DIR = "/mnt/usbdata/alist/data"
+local DATA_DIR = "/overlay/alist/data"
 local CFG = DATA_DIR .. "/config.json"
 local DB = DATA_DIR .. "/data.db"
-local TC_DATA = "/mnt/usbdata/alist/ip_limits.json"
-local TC_SCRIPT = "/mnt/usbdata/alist/tc_apply.sh"
+local TC_DATA = "/overlay/alist/ip_limits.json"
+local TC_SCRIPT = "/overlay/alist/tc_apply.sh"
 
 function index()
-    if not nixio.fs.access("/mnt/usbdata/alist/alist") then
+    if not nixio.fs.access("/usr/bin/alist") then
         return
     end
     entry({"admin", "nas", "alist"}, cbi("alist"), _("Alist"), 30).dependent = true
